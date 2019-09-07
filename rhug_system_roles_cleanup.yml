@@ -1,0 +1,67 @@
+- hosts: system_roles
+  become: true
+  vars:
+    - APP_NIC1: "52:54:00:C0:75:74"
+    - APP_NIC2: "52:54:00:8E:46:18"
+
+  tasks:
+    - name: remove the image builder packages
+      package:
+        name: "lorax-composer, composer-cli, cockpit-composer"
+        state: absent
+
+    - name: Unmount the image builder disk
+      mount:
+        path: /var/lib/lorax/composer
+        state: unmounted
+
+    - name: clean out old files on image builder disk
+      file:
+        path: /var/lib/lorax/composer
+        #state: directory
+        #recurse: yes
+        state: absent
+        
+    - name: Unmount the image builder disk
+      mount:
+        path: /var/lib/lorax/composer
+        state: absent
+
+    - name: remove lvol
+      lvol:
+        lv: composer
+        vg: image_builder
+        state: absent
+        force: yes
+
+    - name: remove vg
+      lvg:
+        vg: image_builder
+        state: absent
+
+    - name: Delete all network except main System Interface (eth0)
+      include_role:
+        name: linux-system-roles.network
+      ignore_errors: yes
+      vars:
+        network_connections:
+          - name: ib_bond_1
+            mac: "{{APP_NIC1 }}"
+            #interface_name: enp8s0
+            type: ethernet
+            state: down
+            persistent_state: absent
+    
+          - name: ib_bond_2
+            mac: "{{ APP_NIC2 }}"
+            #interface_name: enp9s0
+            type: ethernet
+            state: down
+            persistent_state: absent
+
+          - name: IB_Bond
+            interface_name: "ib_bond"
+            type: bond
+            state: down
+            persistent_state: absent
+
